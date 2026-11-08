@@ -2,7 +2,7 @@
 
 A service that runs untrusted or LLM-generated Python code in isolated containers, with strict limits and an attack test suite.
 
-> **Status:** planned, not started. This README describes the intended scope.
+> **Status:** early development. The API skeleton and CI are in place; the container runner is next.
 
 ## Purpose
 
@@ -23,7 +23,7 @@ Python, FastAPI, Docker, pytest, GitHub Actions.
 
 ## Roadmap
 
-- [ ] 1. API skeleton, tests and CI
+- [x] 1. API skeleton, tests and CI
 - [ ] 2. Container runner with no network and a read-only filesystem
 - [ ] 3. Resource and time limits
 - [ ] 4. Static policy checks

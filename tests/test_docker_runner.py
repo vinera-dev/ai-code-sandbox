@@ -125,3 +125,46 @@ def test_tmp_does_not_allow_executing_files(runner):
     result = runner.run(code, 20)
 
     assert result.stdout.strip() == "13"
+
+
+def test_code_does_not_run_as_root(runner):
+    code = source(
+        """
+        import os
+        print(os.getuid(), os.getgid(), os.geteuid())
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.split() == ["10001", "10001", "10001"]
+
+
+def test_all_capabilities_are_dropped(runner):
+    code = source(
+        """
+        fields = dict(line.split(':\t') for line in open('/proc/self/status') if ':\t' in line)
+        print(fields['CapEff'].strip(), fields['CapBnd'].strip(), fields['NoNewPrivs'].strip())
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.split() == ["0000000000000000", "0000000000000000", "1"]
+
+
+def test_escalation_to_root_is_refused(runner):
+    code = source(
+        """
+        import os
+        try:
+            os.setuid(0)
+            print('root')
+        except PermissionError:
+            print('refused')
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.strip() == "refused"

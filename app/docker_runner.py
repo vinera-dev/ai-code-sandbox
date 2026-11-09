@@ -8,6 +8,7 @@ from app.runner import Execution, RunnerUnavailable
 DEFAULT_IMAGE = "sbx-python:latest"
 CONTAINER_PREFIX = "sbx-"
 TMP_SIZE = "16m"
+SANDBOX_USER = "10001:10001"
 
 
 class DockerRunner:
@@ -24,6 +25,12 @@ class DockerRunner:
             name,
             "--network",
             "none",
+            "--user",
+            SANDBOX_USER,
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
             "--read-only",
             "--tmpfs",
             f"/tmp:rw,noexec,nosuid,nodev,size={TMP_SIZE}",

@@ -1,5 +1,7 @@
 # ai-code-sandbox
 
+[![CI](https://github.com/vinera-dev/ai-code-sandbox/actions/workflows/ci.yml/badge.svg)](https://github.com/vinera-dev/ai-code-sandbox/actions/workflows/ci.yml)
+
 A service that runs untrusted or LLM-generated Python code in isolated containers, with strict limits and an attack test suite.
 
 > **Status:** early development. The HTTP API, input validation, static policy checks, audit log and concurrency limit are implemented and tested. The container runner is not implemented yet, so `POST /runs` answers `501` until a runner is configured. Nothing here isolates code yet.

@@ -18,4 +18,6 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest
+      - run: pytest -m "not docker"
+      - run: docker build -t sbx-python:ci -f docker/Dockerfile docker
+      - run: pytest -m docker tests/attacks tests/test_docker_runner.py tests/test_image.py tests/test_example.py

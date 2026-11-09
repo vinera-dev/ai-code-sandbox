@@ -15,7 +15,7 @@ class DockerRunner:
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
-        return ["run", "--rm", "-i", "--name", name, self._image]
+        return ["run", "--rm", "-i", "--name", name, "--network", "none", self._image]
 
     def run(self, code: str, timeout_seconds: float) -> Execution:
         if self._docker is None:

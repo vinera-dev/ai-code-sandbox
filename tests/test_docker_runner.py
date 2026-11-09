@@ -168,3 +168,26 @@ def test_escalation_to_root_is_refused(runner):
     result = runner.run(code, 20)
 
     assert result.stdout.strip() == "refused"
+
+
+def test_huge_allocation_is_killed(runner):
+    code = source(
+        """
+        blocks = []
+        while True:
+            blocks.append(bytearray(32 * 1024 * 1024))
+            print(len(blocks), flush=True)
+        """
+    )
+
+    result = runner.run(code, 30)
+
+    allocated = [int(line) for line in result.stdout.split()]
+    assert result.exit_code == 137
+    assert max(allocated) * 32 < 160
+
+
+def test_memory_below_the_limit_is_allowed(runner):
+    result = runner.run("data = bytearray(32 * 1024 * 1024)\nprint(len(data))", 20)
+
+    assert result.stdout.strip() == str(32 * 1024 * 1024)

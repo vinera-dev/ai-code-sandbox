@@ -9,11 +9,13 @@ DEFAULT_IMAGE = "sbx-python:latest"
 CONTAINER_PREFIX = "sbx-"
 TMP_SIZE = "16m"
 SANDBOX_USER = "10001:10001"
+DEFAULT_MEMORY = "128m"
 
 
 class DockerRunner:
-    def __init__(self, image: str = DEFAULT_IMAGE) -> None:
+    def __init__(self, image: str = DEFAULT_IMAGE, memory: str = DEFAULT_MEMORY) -> None:
         self._image = image
+        self._memory = memory
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
@@ -31,6 +33,10 @@ class DockerRunner:
             "ALL",
             "--security-opt",
             "no-new-privileges",
+            "--memory",
+            self._memory,
+            "--memory-swap",
+            self._memory,
             "--read-only",
             "--tmpfs",
             f"/tmp:rw,noexec,nosuid,nodev,size={TMP_SIZE}",

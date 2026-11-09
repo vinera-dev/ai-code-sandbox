@@ -81,3 +81,33 @@ def test_without_a_runner_the_service_answers_501():
     response = TestClient(create_app()).post("/runs", json={"code": "print(1)"})
 
     assert response.status_code == 501
+
+
+def test_blocked_code_returns_403_with_structured_reasons_and_is_not_executed(client, runner):
+    response = client.post("/runs", json={"code": "import os\nprint(os.listdir('/'))"})
+
+    body = response.json()
+    assert response.status_code == 403
+    assert body["status"] == "blocked"
+    assert body["stdout"] == ""
+    assert body["violations"] == [
+        {"rule": "forbidden_import", "detail": "Importing 'os' is not allowed.", "line": 1}
+    ]
+    assert runner.calls == []
+
+
+def test_unparseable_code_is_blocked(client, runner):
+    response = client.post("/runs", json={"code": "def broken(:"})
+
+    assert response.status_code == 403
+    assert response.json()["violations"][0]["rule"] == "unparseable"
+    assert runner.calls == []
+
+
+def test_every_violation_is_reported(client):
+    response = client.post("/runs", json={"code": "import socket\neval('1')"})
+
+    assert [v["rule"] for v in response.json()["violations"]] == [
+        "forbidden_import",
+        "forbidden_call",
+    ]

@@ -2,13 +2,16 @@ import time
 import uuid
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
+from app.policy import Policy, check_code, load_policy
 from app.runner import Execution, Runner, RunnerUnavailable, UnavailableRunner
 from app.schemas import RunRequest, RunResponse
 
 
-def create_app(runner: Runner | None = None) -> FastAPI:
+def create_app(runner: Runner | None = None, policy: Policy | None = None) -> FastAPI:
     active_runner = runner or UnavailableRunner()
+    active_policy = policy or load_policy()
     application = FastAPI(title="ai-code-sandbox", version="0.1.0")
 
     @application.get("/health")
@@ -16,9 +19,13 @@ def create_app(runner: Runner | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @application.post("/runs", response_model=RunResponse)
-    def create_run(request: RunRequest) -> RunResponse:
+    def create_run(request: RunRequest):
         run_id = uuid.uuid4().hex
         started = time.monotonic()
+        violations = check_code(request.code, active_policy)
+        if violations:
+            blocked = RunResponse(run_id=run_id, status="blocked", violations=violations)
+            return JSONResponse(status_code=403, content=blocked.model_dump())
         try:
             execution = active_runner.run(request.code, request.timeout_seconds)
         except RunnerUnavailable as error:

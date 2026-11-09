@@ -1,0 +1,35 @@
+forbidden_imports:
+  - os
+  - subprocess
+  - socket
+  - ssl
+  - ctypes
+  - shutil
+  - importlib
+  - multiprocessing
+  - pty
+  - signal
+  - resource
+  - http
+  - urllib
+  - ftplib
+  - smtplib
+  - telnetlib
+  - requests
+  - httpx
+
+forbidden_calls:
+  - eval
+  - exec
+  - compile
+  - __import__
+  - breakpoint
+  - input
+
+forbidden_attributes:
+  - __subclasses__
+  - __globals__
+  - __builtins__
+  - __code__
+  - __bases__
+  - __mro__

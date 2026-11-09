@@ -260,3 +260,39 @@ def test_output_before_the_deadline_is_kept(runner):
 
     assert result.timed_out is True
     assert result.stdout == "before\n"
+
+
+def test_huge_output_is_truncated(runner):
+    code = source(
+        """
+        import sys
+        chunk = 'x' * 1024 * 1024
+        for _ in range(64):
+            sys.stdout.write(chunk)
+            sys.stderr.write(chunk)
+        """
+    )
+
+    result = runner.run(code, 60)
+
+    assert result.exit_code == 0
+    assert result.output_truncated is True
+    assert len(result.stdout) == 64 * 1024
+    assert len(result.stderr) == 64 * 1024
+
+
+def test_endless_output_is_capped_until_the_deadline(runner):
+    result = runner.run("while True:\n    print('y' * 1000)", 8)
+
+    assert result.timed_out is True
+    assert result.output_truncated is True
+    assert len(result.stdout) == 64 * 1024
+
+
+def test_output_at_the_limit_is_not_flagged(sandbox_image):
+    small = DockerRunner(image=sandbox_image, max_output_bytes=10)
+
+    result = small.run("import sys\nsys.stdout.write('0123456789')", 20)
+
+    assert result.stdout == "0123456789"
+    assert result.output_truncated is False

@@ -12,6 +12,7 @@ SANDBOX_USER = "10001:10001"
 DEFAULT_MEMORY = "128m"
 DEFAULT_CPUS = "0.5"
 DEFAULT_PIDS = 64
+DEFAULT_MAX_OUTPUT_BYTES = 64 * 1024
 REMOVE_TIMEOUT_SECONDS = 30
 
 
@@ -22,11 +23,13 @@ class DockerRunner:
         memory: str = DEFAULT_MEMORY,
         cpus: str = DEFAULT_CPUS,
         pids: int = DEFAULT_PIDS,
+        max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
     ) -> None:
         self._image = image
         self._memory = memory
         self._cpus = cpus
         self._pids = pids
+        self._max_output = max_output_bytes
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
@@ -68,8 +71,8 @@ class DockerRunner:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        stdout = _Collector(process.stdout)
-        stderr = _Collector(process.stderr)
+        stdout = _Collector(process.stdout, self._max_output)
+        stderr = _Collector(process.stderr, self._max_output)
         timed_out = False
         try:
             _feed(process, code)
@@ -86,6 +89,7 @@ class DockerRunner:
             stderr=stderr.text(),
             exit_code=None if timed_out else process.returncode,
             timed_out=timed_out,
+            output_truncated=stdout.truncated or stderr.truncated,
         )
 
     def _dispose(self, name: str, process: subprocess.Popen) -> None:
@@ -113,15 +117,23 @@ def _feed(process: subprocess.Popen, code: str) -> None:
 
 
 class _Collector:
-    def __init__(self, stream) -> None:
+    def __init__(self, stream, limit: int) -> None:
         self._stream = stream
+        self._limit = limit
         self._chunks: list[bytes] = []
+        self._size = 0
+        self.truncated = False
         self._thread = threading.Thread(target=self._read, daemon=True)
         self._thread.start()
 
     def _read(self) -> None:
-        for chunk in iter(lambda: self._stream.read(4096), b""):
-            self._chunks.append(chunk)
+        for chunk in iter(lambda: self._stream.read(65536), b""):
+            room = self._limit - self._size
+            if len(chunk) > room:
+                self.truncated = True
+            if room > 0:
+                self._chunks.append(chunk[:room])
+                self._size += min(len(chunk), room)
 
     def join(self) -> None:
         self._thread.join()

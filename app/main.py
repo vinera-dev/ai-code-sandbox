@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.audit import AuditLog
+from app.docker_runner import DEFAULT_IMAGE, DockerRunner
 from app.policy import Policy, check_code, load_policy
 from app.runner import Execution, Runner, RunnerUnavailable, UnavailableRunner
 from app.schemas import RunRequest, RunResponse
@@ -17,13 +18,22 @@ DEFAULT_AUDIT_PATH = "audit.jsonl"
 DEFAULT_MAX_CONCURRENT_RUNS = 4
 
 
+def runner_from_environment() -> Runner:
+    if os.environ.get("SANDBOX_RUNNER") == "docker":
+        return DockerRunner(
+            image=os.environ.get("SANDBOX_IMAGE", DEFAULT_IMAGE),
+            runtime=os.environ.get("SANDBOX_RUNTIME") or None,
+        )
+    return UnavailableRunner()
+
+
 def create_app(
     runner: Runner | None = None,
     policy: Policy | None = None,
     audit_log: AuditLog | None = None,
     max_concurrent_runs: int | None = None,
 ) -> FastAPI:
-    active_runner = runner or UnavailableRunner()
+    active_runner = runner or runner_from_environment()
     active_policy = policy or load_policy()
     audit = audit_log or AuditLog(Path(os.environ.get("AUDIT_LOG_PATH", DEFAULT_AUDIT_PATH)))
     limit = max_concurrent_runs or int(

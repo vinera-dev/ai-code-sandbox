@@ -47,6 +47,14 @@ Severity is the impact if the attack succeeds with no mitigation.
 | T14 | Dangerous code submitted knowingly (for example miners, destructive patterns) | Low | Static policy check before execution as defense in depth only, never as the boundary | Known-bad samples are rejected; a bypass of the check must still be contained by T1 to T9 |
 | T15 | Missing evidence after an incident | Medium | Audit log with caller, code hash, limits applied, result and duration for every run | A run produces a complete audit record, including for rejected and timed-out runs |
 
+## Syscall filtering and hardened runtime
+
+Every container runs under Docker's default seccomp profile, which blocks roughly 40 dangerous system calls, among them `mount`, `ptrace` against other processes, `kexec_load`, `bpf` and the creation of user namespaces. The profile is not disabled anywhere in the runner, and a test fails if it is: it calls `unshare(CLONE_NEWUSER)`, which the default profile rejects with `EPERM` and an unconfined container accepts. The same test was verified to fail after adding `seccomp=unconfined`.
+
+Seccomp narrows the kernel surface but does not remove it: allowed system calls still run against the shared host kernel. For deployments that need a stronger boundary the runner accepts an alternative OCI runtime. Setting `SANDBOX_RUNTIME=runsc` passes `--runtime runsc` to `docker run`, which executes the container under gVisor. gVisor intercepts system calls in a user-space kernel, so a kernel bug in the host is much harder to reach, at the cost of slower system calls and some unsupported ones.
+
+The gVisor path is wired and its argument is unit-tested, but it has not been exercised end to end in this repository because it needs `runsc` installed on the Docker host. Treat it as an option to validate in the target environment, not as a tested guarantee.
+
 ## Design principles
 
 - **Isolation is the boundary, not inspection.** Static checks reduce noise; they are never relied on to stop an attacker.

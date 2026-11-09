@@ -24,15 +24,18 @@ class DockerRunner:
         cpus: str = DEFAULT_CPUS,
         pids: int = DEFAULT_PIDS,
         max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
+        runtime: str | None = None,
     ) -> None:
         self._image = image
         self._memory = memory
         self._cpus = cpus
         self._pids = pids
         self._max_output = max_output_bytes
+        self._runtime = runtime
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
+        runtime = ["--runtime", self._runtime] if self._runtime else []
         return [
             "run",
             "--rm",
@@ -55,6 +58,7 @@ class DockerRunner:
             self._memory,
             "--memory-swap",
             self._memory,
+            *runtime,
             "--read-only",
             "--tmpfs",
             f"/tmp:rw,noexec,nosuid,nodev,size={TMP_SIZE}",

@@ -119,3 +119,15 @@ def test_every_violation_is_reported(client):
         "forbidden_import",
         "forbidden_call",
     ]
+
+
+def test_docker_runner_is_selected_from_the_environment(monkeypatch):
+    from app.docker_runner import DockerRunner
+    from app.main import runner_from_environment
+    from app.runner import UnavailableRunner
+
+    monkeypatch.delenv("SANDBOX_RUNNER", raising=False)
+    assert isinstance(runner_from_environment(), UnavailableRunner)
+
+    monkeypatch.setenv("SANDBOX_RUNNER", "docker")
+    assert isinstance(runner_from_environment(), DockerRunner)

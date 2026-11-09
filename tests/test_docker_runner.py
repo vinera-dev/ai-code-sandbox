@@ -378,3 +378,25 @@ def test_canary_is_not_found_in_process_listing_or_files(runner, monkeypatch):
     result = runner.run(code, 20)
 
     assert result.stdout.strip() == "[]"
+
+
+def test_default_seccomp_profile_blocks_user_namespaces(runner):
+    code = source(
+        """
+        import ctypes
+        libc = ctypes.CDLL(None, use_errno=True)
+        print(libc.unshare(0x10000000), ctypes.get_errno())
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.split() == ["-1", "1"]
+
+
+def test_hardened_runtime_is_passed_to_docker_when_configured():
+    plain = DockerRunner(image="sbx-python:test")._arguments("sbx-x")
+    hardened = DockerRunner(image="sbx-python:test", runtime="runsc")._arguments("sbx-x")
+
+    assert "--runtime" not in plain
+    assert hardened[hardened.index("--runtime") + 1] == "runsc"

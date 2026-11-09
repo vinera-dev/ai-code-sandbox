@@ -30,6 +30,10 @@ Python, FastAPI, Docker, pytest, GitHub Actions.
 - [ ] 5. Audit log
 - [ ] 6. Attack test suite and documented threat model
 
+## Security
+
+See the [threat model](THREAT_MODEL.md) for the assets, trust boundaries and planned mitigations.
+
 ## License
 
 Released under the [MIT License](LICENSE).

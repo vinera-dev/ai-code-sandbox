@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.audit import AuditLog
 from app.main import create_app
 from app.runner import Execution
 from app.schemas import MAX_CODE_CHARS, MAX_TIMEOUT_SECONDS
@@ -22,8 +23,13 @@ def runner():
 
 
 @pytest.fixture
-def client(runner):
-    return TestClient(create_app(runner))
+def audit(tmp_path):
+    return AuditLog(tmp_path / "audit.jsonl")
+
+
+@pytest.fixture
+def client(runner, audit):
+    return TestClient(create_app(runner, audit_log=audit))
 
 
 def test_valid_run_returns_the_execution_result(client, runner):
@@ -44,10 +50,12 @@ def test_timeout_is_passed_to_the_runner(client, runner):
     assert runner.calls[0][1] == 2.5
 
 
-def test_timed_out_execution_is_reported(runner):
+def test_timed_out_execution_is_reported(runner, audit):
     runner.execution = Execution(stdout="", stderr="", exit_code=None, timed_out=True)
 
-    response = TestClient(create_app(runner)).post("/runs", json={"code": "while True: pass"})
+    response = TestClient(create_app(runner, audit_log=audit)).post(
+        "/runs", json={"code": "while True: pass"}
+    )
 
     assert response.json()["status"] == "timeout"
     assert response.json()["exit_code"] is None
@@ -77,8 +85,8 @@ def test_code_at_the_size_limit_is_accepted(client):
     assert client.post("/runs", json={"code": "#" * MAX_CODE_CHARS}).status_code == 200
 
 
-def test_without_a_runner_the_service_answers_501():
-    response = TestClient(create_app()).post("/runs", json={"code": "print(1)"})
+def test_without_a_runner_the_service_answers_501(audit):
+    response = TestClient(create_app(audit_log=audit)).post("/runs", json={"code": "print(1)"})
 
     assert response.status_code == 501
 

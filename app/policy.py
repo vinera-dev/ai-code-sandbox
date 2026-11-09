@@ -1,4 +1,6 @@
 import ast
+import hashlib
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +17,17 @@ class Policy:
     forbidden_imports: frozenset[str]
     forbidden_calls: frozenset[str]
     forbidden_attributes: frozenset[str]
+
+    def fingerprint(self) -> str:
+        canonical = json.dumps(
+            {
+                "imports": sorted(self.forbidden_imports),
+                "calls": sorted(self.forbidden_calls),
+                "attributes": sorted(self.forbidden_attributes),
+            },
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def load_policy(path: Path = DEFAULT_POLICY_PATH) -> Policy:

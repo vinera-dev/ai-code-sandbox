@@ -6,7 +6,7 @@ MAX_CODE_CHARS = 20_000
 DEFAULT_TIMEOUT_SECONDS = 5.0
 MAX_TIMEOUT_SECONDS = 30.0
 
-RunStatus = Literal["completed", "timeout", "blocked", "error"]
+RunStatus = Literal["completed", "timeout", "blocked", "rejected", "error"]
 
 
 class RunRequest(BaseModel):

@@ -1,3 +1,5 @@
+import json
+import os
 import textwrap
 import time
 
@@ -332,3 +334,47 @@ def test_no_container_remains_after_crashing_code(runner):
         runner.run(code, 20)
 
     assert leftover_containers() == []
+
+
+CANARY_NAME = "SBX_CANARY_SECRET"
+CANARY_VALUE = "sbx-canary-value-5f3a9c"
+
+
+def test_host_environment_is_not_visible(runner, monkeypatch):
+    monkeypatch.setenv(CANARY_NAME, CANARY_VALUE)
+    code = source(
+        """
+        import json, os
+        print(json.dumps(dict(os.environ)))
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    visible = json.loads(result.stdout)
+    host_only = set(os.environ) - {"PATH", "HOME", "LANG", "HOSTNAME"}
+    assert CANARY_NAME not in visible
+    assert CANARY_VALUE not in result.stdout
+    assert not host_only & set(visible)
+
+
+def test_canary_is_not_found_in_process_listing_or_files(runner, monkeypatch):
+    monkeypatch.setenv(CANARY_NAME, CANARY_VALUE)
+    code = source(
+        """
+        import os
+        needle = b'sbx-canary-value-5f3a9c'
+        hits = []
+        for pid in filter(str.isdigit, os.listdir('/proc')):
+            try:
+                if needle in open(f'/proc/{pid}/environ', 'rb').read():
+                    hits.append(pid)
+            except OSError:
+                pass
+        print(hits)
+        """
+    )
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.strip() == "[]"

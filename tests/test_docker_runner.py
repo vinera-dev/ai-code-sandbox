@@ -191,3 +191,44 @@ def test_memory_below_the_limit_is_allowed(runner):
     result = runner.run("data = bytearray(32 * 1024 * 1024)\nprint(len(data))", 20)
 
     assert result.stdout.strip() == str(32 * 1024 * 1024)
+
+
+def test_fork_bomb_is_contained(runner):
+    code = source(
+        """
+        import os, time
+        children = 0
+        try:
+            while True:
+                if os.fork() == 0:
+                    time.sleep(30)
+                    os._exit(0)
+                children += 1
+        except OSError as error:
+            print(children, error.errno, flush=True)
+        os._exit(0)
+        """
+    )
+
+    result = runner.run(code, 30)
+
+    children, errno = (int(value) for value in result.stdout.split())
+    assert errno == 11
+    assert 0 < children < 64
+
+
+def test_cpu_usage_is_capped(runner):
+    code = source(
+        """
+        import time
+        wall = time.monotonic()
+        cpu = time.process_time()
+        while time.monotonic() - wall < 4:
+            pass
+        print((time.process_time() - cpu) / (time.monotonic() - wall))
+        """
+    )
+
+    result = runner.run(code, 30)
+
+    assert float(result.stdout) < 0.75

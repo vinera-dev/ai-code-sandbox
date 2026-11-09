@@ -10,12 +10,22 @@ CONTAINER_PREFIX = "sbx-"
 TMP_SIZE = "16m"
 SANDBOX_USER = "10001:10001"
 DEFAULT_MEMORY = "128m"
+DEFAULT_CPUS = "0.5"
+DEFAULT_PIDS = 64
 
 
 class DockerRunner:
-    def __init__(self, image: str = DEFAULT_IMAGE, memory: str = DEFAULT_MEMORY) -> None:
+    def __init__(
+        self,
+        image: str = DEFAULT_IMAGE,
+        memory: str = DEFAULT_MEMORY,
+        cpus: str = DEFAULT_CPUS,
+        pids: int = DEFAULT_PIDS,
+    ) -> None:
         self._image = image
         self._memory = memory
+        self._cpus = cpus
+        self._pids = pids
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
@@ -33,6 +43,10 @@ class DockerRunner:
             "ALL",
             "--security-opt",
             "no-new-privileges",
+            "--cpus",
+            self._cpus,
+            "--pids-limit",
+            str(self._pids),
             "--memory",
             self._memory,
             "--memory-swap",

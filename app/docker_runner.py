@@ -7,6 +7,7 @@ from app.runner import Execution, RunnerUnavailable
 
 DEFAULT_IMAGE = "sbx-python:latest"
 CONTAINER_PREFIX = "sbx-"
+TMP_SIZE = "16m"
 
 
 class DockerRunner:
@@ -15,7 +16,19 @@ class DockerRunner:
         self._docker = shutil.which("docker")
 
     def _arguments(self, name: str) -> list[str]:
-        return ["run", "--rm", "-i", "--name", name, "--network", "none", self._image]
+        return [
+            "run",
+            "--rm",
+            "-i",
+            "--name",
+            name,
+            "--network",
+            "none",
+            "--read-only",
+            "--tmpfs",
+            f"/tmp:rw,noexec,nosuid,nodev,size={TMP_SIZE}",
+            self._image,
+        ]
 
     def run(self, code: str, timeout_seconds: float) -> Execution:
         if self._docker is None:

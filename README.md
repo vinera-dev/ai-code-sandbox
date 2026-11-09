@@ -22,6 +22,24 @@ pytest
 uvicorn app.main:app
 ```
 
+## Integration example
+
+`examples/llm_integration.py` shows the intended flow for an application that lets a model write code: the code goes through the static policy first, then runs in a container, and the caller gets a small outcome object. The model here is scripted so the example is deterministic.
+
+```bash
+docker build -t sbx-python:latest -f docker/Dockerfile docker
+python -m examples.llm_integration
+```
+
+Expected output:
+
+```
+sum the first hundred integers: completed 5050
+read the service secrets: blocked forbidden_import
+call an external host: blocked forbidden_import
+wait forever: timeout
+```
+
 ## Planned scope
 
 - HTTP API to submit code and receive stdout, stderr, exit status and resource usage

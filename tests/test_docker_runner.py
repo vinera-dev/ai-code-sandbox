@@ -400,3 +400,23 @@ def test_hardened_runtime_is_passed_to_docker_when_configured():
 
     assert "--runtime" not in plain
     assert hardened[hardened.index("--runtime") + 1] == "runsc"
+
+
+def test_nothing_from_a_previous_run_is_visible(runner):
+    first = runner.run("open('/tmp/left-behind', 'w').write('x')\nprint('done')", 20)
+    second = runner.run(
+        "import os\nprint(os.path.exists('/tmp/left-behind'), os.listdir('/tmp'))", 20
+    )
+
+    assert first.stdout.strip() == "done"
+    assert second.stdout.strip() == "False []"
+
+
+def test_shell_metacharacters_in_code_stay_literal(runner):
+    payload = "$(id) `id` ; | && > /tmp/x ' --privileged -v /:/host"
+    code = f"print({payload!r})"
+
+    result = runner.run(code, 20)
+
+    assert result.stdout.strip() == payload
+    assert result.exit_code == 0

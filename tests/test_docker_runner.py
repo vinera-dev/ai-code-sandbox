@@ -3,6 +3,7 @@ import time
 
 import pytest
 
+from app import docker_runner
 from app.docker_runner import DockerRunner
 from tests.conftest import leftover_containers
 
@@ -296,3 +297,38 @@ def test_output_at_the_limit_is_not_flagged(sandbox_image):
 
     assert result.stdout == "0123456789"
     assert result.output_truncated is False
+
+
+def test_container_is_removed_when_the_runner_fails_midway(runner, monkeypatch):
+    seen = []
+    original = docker_runner._feed
+
+    def feed_then_fail(process, code):
+        original(process, code)
+        time.sleep(5)
+        seen.extend(leftover_containers())
+        raise RuntimeError("simulated failure")
+
+    monkeypatch.setattr(docker_runner, "_feed", feed_then_fail)
+
+    with pytest.raises(RuntimeError):
+        runner.run("import time\ntime.sleep(600)", 60)
+
+    assert len(seen) == 1
+    assert leftover_containers() == []
+
+
+def test_no_container_remains_when_the_image_is_missing():
+    broken = DockerRunner(image="sbx-missing-image:none")
+
+    result = broken.run("print(1)", 30)
+
+    assert result.exit_code != 0
+    assert leftover_containers() == []
+
+
+def test_no_container_remains_after_crashing_code(runner):
+    for code in ("raise SystemExit(7)", "import os\nos._exit(9)", "1/0"):
+        runner.run(code, 20)
+
+    assert leftover_containers() == []

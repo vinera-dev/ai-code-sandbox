@@ -12,6 +12,7 @@ SANDBOX_USER = "10001:10001"
 DEFAULT_MEMORY = "128m"
 DEFAULT_CPUS = "0.5"
 DEFAULT_PIDS = 64
+REMOVE_TIMEOUT_SECONDS = 30
 
 
 class DockerRunner:
@@ -69,16 +70,37 @@ class DockerRunner:
         )
         stdout = _Collector(process.stdout)
         stderr = _Collector(process.stderr)
+        timed_out = False
         try:
             _feed(process, code)
-            process.wait()
+            try:
+                process.wait(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                timed_out = True
         finally:
+            self._dispose(name, process)
             stdout.join()
             stderr.join()
         return Execution(
             stdout=stdout.text(),
             stderr=stderr.text(),
-            exit_code=process.returncode,
+            exit_code=None if timed_out else process.returncode,
+            timed_out=timed_out,
+        )
+
+    def _dispose(self, name: str, process: subprocess.Popen) -> None:
+        self._remove(name)
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+            self._remove(name)
+
+    def _remove(self, name: str) -> None:
+        subprocess.run(
+            [self._docker, "rm", "--force", name],
+            capture_output=True,
+            timeout=REMOVE_TIMEOUT_SECONDS,
+            check=False,
         )
 
 

@@ -1,8 +1,10 @@
 import textwrap
+import time
 
 import pytest
 
 from app.docker_runner import DockerRunner
+from tests.conftest import leftover_containers
 
 pytestmark = pytest.mark.docker
 
@@ -232,3 +234,29 @@ def test_cpu_usage_is_capped(runner):
     result = runner.run(code, 30)
 
     assert float(result.stdout) < 0.75
+
+
+def test_infinite_loop_ends_at_the_deadline(runner):
+    started = time.monotonic()
+
+    result = runner.run("while True:\n    pass", 6)
+
+    elapsed = time.monotonic() - started
+    assert result.timed_out is True
+    assert result.exit_code is None
+    assert elapsed < 6 + 10
+    assert leftover_containers() == []
+
+
+def test_sleeping_code_is_stopped_too(runner):
+    result = runner.run("import time\ntime.sleep(600)", 5)
+
+    assert result.timed_out is True
+    assert leftover_containers() == []
+
+
+def test_output_before_the_deadline_is_kept(runner):
+    result = runner.run("print('before', flush=True)\nwhile True:\n    pass", 8)
+
+    assert result.timed_out is True
+    assert result.stdout == "before\n"
